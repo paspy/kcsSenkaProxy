@@ -1,4 +1,4 @@
-package Enums
+package kcsSenka.Enums
 {
 	public final class SenkaWorkerStates
 	{

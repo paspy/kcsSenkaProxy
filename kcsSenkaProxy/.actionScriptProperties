@@ -41,6 +41,9 @@
     <sourceAttachmentPath/>
   </compiler>
   <applications>
+    <application path="kcsSenkaTester.as">
+      <airExcludes/>
+    </application>
     <application path="kcsSenkaMain.as">
       <airExcludes/>
     </application>
