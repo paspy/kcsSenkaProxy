@@ -20,11 +20,4 @@
 		<nature>com.adobe.flexbuilder.project.apollonature</nature>
 		<nature>com.adobe.flexbuilder.project.actionscriptnature</nature>
 	</natures>
-	<linkedResources>
-		<link>
-			<name>[source path] User Interface</name>
-			<type>2</type>
-			<location>C:/Program Files/Adobe/Adobe Animate CC 2017/Common/Configuration/Component Source/ActionScript 3.0/User Interface</location>
-		</link>
-	</linkedResources>
 </projectDescription>

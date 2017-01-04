@@ -1,7 +1,9 @@
 package kcsSenka {
+	
     import flash.events.DatagramSocketDataEvent;
     import flash.net.DatagramSocket;
     import flash.utils.ByteArray;
+    
     import kcsCore._APIBaseS_;
 
     public class SenkaProxy {
@@ -31,31 +33,31 @@ package kcsSenka {
             UDPSocket=new DatagramSocket();
             try {
                 UDPSocket.addEventListener(DatagramSocketDataEvent.DATA, UDPSocketReceived);
-                UDPSocket.bind(Consts.DefaultPort, Consts.LocalIP);
+                UDPSocket.bind(Consts_Utils.DefaultPort, Consts_Utils.LocalIP);
                 UDPSocket.receive();
-                Log("kcsSenka Initialized.");
+                Log("SenkaProxy Initialized.");
 
             } catch (e:Error) {
                 Log(e.message);
                 return;
             }
 
-            Log("Listen at port: " + Consts.LocalIP + " : " + Consts.DefaultPort);
+            Log("Listen at port: " + Consts_Utils.LocalIP + " : " + Consts_Utils.DefaultPort);
         }
 
         private function UDPSocketReceived(event:DatagramSocketDataEvent):void {
             try {
-                var receivedMsg:String=event.data.readUTFBytes(event.data.bytesAvailable);
-                var srcAddress:String=event.srcAddress;
+                var receivedMsg:String = event.data.readUTFBytes(event.data.bytesAvailable);
+                var srcAddress:String = event.srcAddress;
                 var srcPort:int=event.srcPort;
                 Log("Received from " + srcAddress + ":" + srcPort + "> " + receivedMsg);
-                if (receivedMsg.substr(0, Consts.RequestRankingAPI.length) == Consts.RequestRankingAPI) {
-                    var memberId:String=receivedMsg.substr(Consts.RequestRankingAPI.length);
+                if (receivedMsg.substr(0, Consts_Utils.RequestRankingAPI.length) == Consts_Utils.RequestRankingAPI) {
+                    var memberId:String = receivedMsg.substr(Consts_Utils.RequestRankingAPI.length);
                     Log("Member ID is " + memberId);
-                    var data:ByteArray=new ByteArray();
-                    var sendMsg:String=Consts.EncodedRankingAPI + GetAPI_ranking(memberId);
+                    var data:ByteArray = new ByteArray();
+                    var sendMsg:String = Consts_Utils.EncodedRankingAPI + GetAPI_ranking(memberId);
                     data.writeUTFBytes(sendMsg);
-                    UDPSocket.send(data, 0, 0, srcAddress, Consts.TargetPort);
+                    UDPSocket.send(data, 0, 0, srcAddress, Consts_Utils.TargetPort);
                     Log("Send to " + srcAddress + ":" + srcPort + "> " + sendMsg);
                 }
             } catch (e:Error) {

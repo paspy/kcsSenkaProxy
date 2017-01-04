@@ -6,7 +6,7 @@ package
 	
 	import kcsRecordMain.RankData;
 	import kcsRecordMain.RankingData;
-	import kcsSenka.Consts;
+	import kcsSenka.Consts_Utils;
 	
 	public class kcsSenkaTester extends Sprite
 	{
@@ -60,7 +60,7 @@ package
 			var rankd:* = new RankData(memberId, data,keyGen._l_,keyGen._createKey);
 //			var r:* = keyGen._l_(memberId,keyGen._createKey(),true);
 			
-			var r:Object = Consts.DecodeRateAndMedal(memberId, data["api_mxltvkpyuklh"], data["api_wuhnhojjxmke"], data["api_itslcqtmrxtf"]);
+			var r:Object = Consts_Utils.DecodeRateAndMedal(memberId, data["api_mxltvkpyuklh"], data["api_wuhnhojjxmke"], data["api_itslcqtmrxtf"]);
 			trace();
 			
 		}
