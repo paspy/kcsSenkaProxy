@@ -16,20 +16,20 @@ package kcsSenka  {
     import flash.net.URLRequestMethod;
     import flash.net.URLVariables;
     import flash.utils.Timer;
-	
+    
+    import mx.utils.StringUtil;
+    
     import kcsCore.UserRecordData;
     import kcsCore._APIBaseS_;
+    
     import kcsRecordMain.RankingData;
+    
     import kcsSenka.Enums.SenkaWorkerStates;
 
     public class SenkaWorker {
 
-        public static function GetRandomNum(minLimit:int, maxLimit:int):Number {
-            return Math.ceil(Math.random() * (maxLimit - minLimit)) + minLimit;
-        }
-		
         private var _Log:Function;
-
+		private var _WorkerEvent:SenkaWorkerDispatcher;
         private var _apiUrl:String;
         private var _cachePageTimers:Vector.<Timer>; // for launch a pile of delay timers at onece, so ugly lol
         private var _curCachePage:int;
@@ -55,68 +55,90 @@ package kcsSenka  {
         private var _timer:Timer; // for single post
         private var _token:String;
 		private var _workerName:String;
+		private var _serverAddr:String;
 
         private var _urlLoader:URLLoader; // for post and download data
 
         private var _userRecordData:UserRecordData; // contains user record data
         private var _workerProgress:Number;
 
-        public function SenkaWorker(server:String, name:String, token:String, LogFunc:Function, maxPage:uint = 5) {
-            _workerProgress  =  0;
+        public function SenkaWorker(server:String, name:String, token:String, LogFunc:Function, maxPage:uint = 10) {
+			_WorkerEvent = new SenkaWorkerDispatcher();
             _keyGen  =  new _APIBaseS_();
             _userRecordData  =  new UserRecordData();
             _rankDataList  =  new Vector.<RankingData>();
             _cachePageTimers  =  new Vector.<Timer>();
+            _workerProgress  =  0;
             _memberId = "";
             _apiUrl = "http://" + server + "/kcsapi/";
+			_serverAddr = server;
             _token = token;
 			_workerName = name;
             _Log = LogFunc;
             _maxCachePage = maxPage;
             _curCachePage = 0;
-            PostRequestSetup();
             _currWorkingState = SenkaWorkerStates.eIdle;
-			_Log("Server: " + _workerName + " selected. Token: " + _token + ". Ready to work.");
+			_Log(_workerName + " - Token: " + _token + ". Ready to work.");
+            PostRequestSetup();
         }
 		
 		public function get WorkerName():String { return _workerName; }
+        
+		public function get Progress():Number { return _workerProgress > 100 ? 100 : _workerProgress; }
 
-        public function ExportToFile(filename:String):void {
-            if (_currWorkingState !=  SenkaWorkerStates.eFinished)
-                return;
-
+        public function ExportToXML():void {
+//            if (_currWorkingState != SenkaWorkerStates.eFinished) return;
+			var df:DateTimeFormatter = new DateTimeFormatter(LocaleID.DEFAULT);
+			var jpnow:Date = Consts_Utils.GetTokyoTime();
+			df.setDateTimePattern("yyyy-MM-dd_HH");
             try {
-                var file:File = File.applicationStorageDirectory;
-                file = file.resolvePath(filename);
+				var filename:File = File.applicationStorageDirectory.resolvePath(".\\SenkaData\\" + _workerName);
+				filename.createDirectory();
+				var updateHour:Date = jpnow;
+				updateHour.setHours(jpnow.hours>=15?15:3);
+				filename = filename.resolvePath(".\\" + df.format(updateHour) + ".xml");
+				
+//				var filename:File = File.applicationDirectory.resolvePath("SenkaData").resolvePath(_workerName);
                 var stream:FileStream = new FileStream();
-                var date:Date = new Date();
-                var df:DateTimeFormatter = new DateTimeFormatter(LocaleID.DEFAULT, DateTimeStyle.LONG, DateTimeStyle.LONG);
-
-                stream.open(file, FileMode.WRITE);
-                stream.writeUTFBytes(df.format(date) + "\n");
+                stream.open(filename, FileMode.WRITE);
+				stream.writeUTFBytes("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
+				df.setDateTimeStyles(DateTimeStyle.SHORT, DateTimeStyle.MEDIUM);
+				stream.writeUTFBytes(
+					StringUtil.substitute(
+						"<KCServer name=\"{0}\" address=\"{1}\" LocalTime=\"{2}\" TokyoTime=\"{3}\">\n",
+						_workerName, _serverAddr, df.format(new Date()), df.format(jpnow)
+					)
+				);
+				
                 for (var i:int = 1; i <=  _maxCachePage; i++) {
                     for (var j:int = 0; j < _rankDataList[i].list.length; j++) {
-                        var s:String = _rankDataList[i].list[j].rankNo + "," + _rankDataList[i].list[j].nickName + "," + Consts_Utils.RankName[_rankDataList[i].list[j].rank] + "," + _rankDataList[i].list[j].comment + "," + _rankDataList[i].list[j].medalNum + "," + _rankDataList[i].list[j].rate + "\n";
+						var s:String = StringUtil.substitute(
+							"    <Senka rankNo=\"{0}\" nickName=\"{1}\" rank=\"{2}\" comment=\"{3}\" medalNum=\"{4}\">{5}</Senka>\n",
+							_rankDataList[i].list[j].rankNo,
+							_rankDataList[i].list[j].nickName,
+							Consts_Utils.RankName[_rankDataList[i].list[j].rank],
+							_rankDataList[i].list[j].comment,
+							_rankDataList[i].list[j].medalNum,
+							_rankDataList[i].list[j].rate
+						);
                         stream.writeUTFBytes(s);
                     }
                 }
+				stream.writeUTFBytes("</KCServer>");
                 stream.close();
-                _Log("ExportToFile completed, file: " + filename);
-
+                _Log(_workerName + " - Save at: " + filename);
+				_WorkerEvent.lanuchEvent(SenkaWorkerDispatcher.SAVE_XML_DONE);
             } catch (e:Error) {
-                _Log("ExportToFile error:" + e.message);
+                _Log(_workerName + " - ExportToFile error:" + e.message);
             }
         }
 
-        public function GetProgress():Number {
-            return _workerProgress > 100 ? 100 : _workerProgress;
-        }
 
         public function StartWorker():void {
             if (_currWorkingState  ==  SenkaWorkerStates.eIdle) {
                 _currWorkingState = SenkaWorkerStates.eRunning;
                 // stage 1 simulate click on Pay Item page
-                _timer = new Timer(GetRandomNum(100, 2000));
+                _timer = new Timer(Consts_Utils.GetRandomNum(100, 1000));
                 _timer.addEventListener(TimerEvent.TIMER, PostPayItemRequest);
                 _timer.start();
             }
@@ -136,14 +158,14 @@ package kcsSenka  {
                 api_data = postResult;
 
             } else {
-                _Log("API result parse error - " + event);
+                _Log(_workerName + " - API result parse error - " + event);
                 return;
             }
             _resultJson = null;
             try {
                 _resultJson = JSON.parse(api_data);
             } catch (e:Error) {
-                _Log("JSON result parse error - " + e.message);
+                _Log(_workerName + " - JSON result parse error - " + e.message);
                 return;
             }
             if (_resultJson.api_result !=  1) {
@@ -154,7 +176,7 @@ package kcsSenka  {
         }
 
         private function PostIOErrorHandler(event:IOErrorEvent):void {
-            _Log("Error! PostIOErrorHandler: " + event);
+            _Log(_workerName + " - Error! PostIOErrorHandler: " + event);
             _urlLoader.removeEventListener("complete", PostCompleteHandler);
             _urlLoader.removeEventListener("ioError", PostIOErrorHandler);
             _urlLoader.removeEventListener("securityError", PostSecurityErrorHandler);
@@ -173,9 +195,9 @@ package kcsSenka  {
             _setDataFunc = SetPayItemData;
             try {
                 _urlLoader.load(_payItemRequest); // send request to download data
-                _Log("PostPayItemRequest has been posted.");
+                _Log(_workerName + " - PostPayItemRequest has been posted.");
             } catch (e:Error) {
-                _Log("Exception occured at PostPayItemRequest: " + e.message);
+                _Log(_workerName + " - Exception occured at PostPayItemRequest: " + e.message);
             }
         }
 
@@ -192,10 +214,10 @@ package kcsSenka  {
             _setDataFunc = SetRecordData;
             try {
                 _urlLoader.load(_recordRequest); // send request to download data
-                _Log("PostRecordRequest has been posted.");
+                _Log(_workerName + " - PostRecordRequest has been posted.");
 
             } catch (e:Error) {
-                _Log("Exception occured at PostRecordRequest: " + e.message);
+                _Log(_workerName + " - Exception occured at PostRecordRequest: " + e.message);
             }
         }
 
@@ -228,11 +250,11 @@ package kcsSenka  {
             _payItemRequest.requestHeaders = customHeader;
             _recordRequest.requestHeaders = customHeader;
             _senkaRequest.requestHeaders = customHeader;
-            _Log("PostRequestSetup completed.");
+            _Log(_workerName + " - PostRequestSetup initialized.");
         }
 
         private function PostSecurityErrorHandler(event:SecurityErrorEvent):void {
-            _Log("Error! PostSecurityErrorHandler: " + event);
+            _Log(_workerName + " - Error! PostSecurityErrorHandler: " + event);
             _urlLoader.removeEventListener("complete", PostCompleteHandler);
             _urlLoader.removeEventListener("ioError", PostIOErrorHandler);
             _urlLoader.removeEventListener("securityError", PostSecurityErrorHandler);
@@ -255,13 +277,13 @@ package kcsSenka  {
                 if (isNaN(memberId))
                     throw ArgumentError;
                 _senkaVar.api_ranking = _keyGen.__(memberId, _keyGen._createKey());
-                _Log("api_ranking: " + _senkaVar["api_ranking"]);
+                _Log(_workerName + " - api_ranking: " + _senkaVar["api_ranking"]);
                 _senkaRequest.data = _senkaVar;
                 _urlLoader.load(_senkaRequest); // send request to download data
-                _Log("PostSenkaRequest has been posted.");
+                _Log(_workerName + " - PostSenkaRequest has been posted.");
 
             } catch (e:Error) {
-                _Log("Exception occured at PostSenkaRequest, page: " + _curCachePage + " - " + e.message);
+                _Log(_workerName + " - Exception occured at PostSenkaRequest, page: " + _curCachePage + " - " + e.message);
                 _timer.stop();
                 _timer.removeEventListener(TimerEvent.TIMER, PostSenkaRequest);
 
@@ -271,14 +293,14 @@ package kcsSenka  {
         // dummy result for simulation purpose, api data should be null
         private function SetPayItemData(api_data:Object):void {
             if (api_data !=  null) {
-                _Log("PayItem's api_data should be null: " + api_data);
+                _Log(_workerName + " - PayItem's api_data should be null: " + api_data);
                 return;
             }
-            _Log("SetPayItemData Completed.");
+            _Log(_workerName + " - SetPayItemData Completed.");
             _workerProgress += 5;
 
             // Stage 1 completed and start stage 2 for simulate click on player record
-            _timer = new Timer(GetRandomNum(2000, 5000));
+            _timer = new Timer(Consts_Utils.GetRandomNum(1000, 3000));
             _timer.addEventListener(TimerEvent.TIMER, PostRecordRequest);
             _timer.start();
         }
@@ -287,12 +309,12 @@ package kcsSenka  {
         private function SetRecordData(api_data:Object):void {
             _userRecordData.setData(api_data);
             _memberId = _userRecordData.getMemberID();
-            _Log("SetRecordData Completed. Member ID is " + _memberId);
+            _Log(_workerName + " - SetRecordData Completed. Member ID is " + _memberId);
             _workerProgress += 5;
 
             // Stage 2 completed and start stage 3 for simulate click on ranking page 
             // default to player's ranking page
-            _timer = new Timer(GetRandomNum(1500, 5000), _maxCachePage + 1 /*plus player ranking page*/); // repeat max page need to cache
+            _timer = new Timer(Consts_Utils.GetRandomNum(500, 4000), _maxCachePage + 1 /*plus player ranking page*/); // repeat max page need to cache
             _timer.addEventListener(TimerEvent.TIMER, PostSenkaRequest);
             _timer.start();
         }
@@ -303,7 +325,7 @@ package kcsSenka  {
             var memberId:int = parseInt(_memberId);
             rankingData.setData(memberId, api_data, _keyGen._l_, _keyGen._createKey); // decode here
             _rankDataList.push(rankingData); // sub 0 can be dropped, page start at sub 1
-            _Log("SetSenkaData Completed. Page: " + (_curCachePage > 0 ? _curCachePage : "player page"));
+            _Log(_workerName + " - SetSenkaData Completed. Page: " + (_curCachePage > 0 ? _curCachePage : "player page"));
             _workerProgress += (90 / _maxCachePage);
             // increase page number here
             if (_curCachePage++ >=  _maxCachePage) {
@@ -311,10 +333,19 @@ package kcsSenka  {
                 _timer.removeEventListener(TimerEvent.TIMER, PostSenkaRequest);
                 _timer = null;
                 _currWorkingState = SenkaWorkerStates.eFinished;
-
-                // todo remove later
-                ExportToFile("senka.csv");
+				_WorkerEvent.lanuchEvent(SenkaWorkerDispatcher.FETCH_DONE);	// all fetch work done
+				ExportToXML();
             }
         }
     }
+}
+
+import flash.events.EventDispatcher;
+import flash.events.Event;
+
+class SenkaWorkerDispatcher extends EventDispatcher {
+	public static const ACTION:String = "action";
+	public static const FETCH_DONE:String = "fetch done";
+	public static const SAVE_XML_DONE:String = "save xml done";
+	public function lanuchEvent(evt:String):void { dispatchEvent(new Event(evt)); }
 }

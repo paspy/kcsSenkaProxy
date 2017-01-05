@@ -1,9 +1,5 @@
 package kcsSenka {
-
     public final class Consts_Utils {
-		
-		
-
         public static const LocalIP:String = "127.0.0.1";
         public static const DefaultPort:int = 12315;
         public static const TargetPort:int = 12316;
@@ -42,8 +38,6 @@ package kcsSenka {
 			server_20:{address:"203.104.209.102",	name:"柱島泊地"}
 		};
 		
-        public static const Server_09_api_token:String = "9e8965c249610a2f0e7536d6dfbb3ae603f8eabd";
-
         public static const POST_UserAgent:String = "Mozilla/5.0 (Android; U; zh-CN) AppleWebKit/533.19.4 (KHTML, like Gecko) AdobeAIR/21.0 rqxbjmdizgzp";
         public static const POST_Referer:String = "app:/AppMain.swf/[[DYNAMIC]]/1";
         public static const POST_FlashVersion:String = "21,0,0,174";
@@ -56,14 +50,24 @@ package kcsSenka {
 
 		public static function GetSortedPairs(object:Object):Array {
 			var sorted:Array = [];
-			
 			for(var i:String in object) {
 				sorted.push({ key: i, value: object[i] });
 			}
-			
 			sorted.sortOn("key");
-			
 			return sorted;
+		}
+		
+		public static function GetTokyoTime() : Date {
+			var now:Date = new Date();
+//			var df:DateTimeFormatter = new DateTimeFormatter("ja", DateTimeStyle.SHORT, DateTimeStyle.MEDIUM); 
+			var tokyoTimeOffsetInMs:Number = 1000 * 60 * 60 * (+9); // GMT +9
+			var utcTimeOfsetInMs:Number = now.getTimezoneOffset() * 60 * 1000;
+			now.setTime(now.getTime() + utcTimeOfsetInMs + tokyoTimeOffsetInMs);
+			return now;
+		}
+		
+		public static function GetRandomNum(minLimit:int, maxLimit:int):Number {
+			return Math.ceil(Math.random() * (maxLimit - minLimit)) + minLimit;
 		}
 		
         // custom decoder

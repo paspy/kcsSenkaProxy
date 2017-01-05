@@ -3,16 +3,12 @@ package {
     import flash.events.Event;
     import flash.events.MouseEvent;
     import flash.events.NativeWindowBoundsEvent;
-    import flash.filesystem.File;
     import flash.globalization.DateTimeFormatter;
     import flash.globalization.LocaleID;
     import flash.text.TextField;
     import flash.text.TextFieldType;
     import flash.text.TextFormat;
-    import flash.utils.ByteArray;
-    
-    import kcsCore._APIBaseS_;
-    
+
     import kcsSenka.Consts_Utils;
     import kcsSenka.SenkaWorker;
 
@@ -28,15 +24,12 @@ package {
          */
         public function kcsSenkaMain() {
             super();
-            SetupUI();
-//          senkaWorker = new SenkaWorker(Consts.Server_09, Consts.Server_09_api_token, Log);
-            root.loaderInfo.addEventListener(Event.INIT, function(e:Event):void { rootPath = File.applicationDirectory.resolvePath("").nativePath; });
-			
+            SetupUI();			
 			Log("Cautions: This program may causes your Kancolle account being BAN.");
 			Log("Only use secondary account for testing and use as your own risk.");
         }
 		
-        private var rootPath:String;
+        
         private var logField:TextField;
 		private var tokenField:TextField;
 		private var progressField:TextField;
