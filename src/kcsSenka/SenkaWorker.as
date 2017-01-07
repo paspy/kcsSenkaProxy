@@ -62,7 +62,7 @@ package kcsSenka  {
         private var _userRecordData:UserRecordData; // contains user record data
         private var _workerProgress:Number;
 
-        public function SenkaWorker(server:String, name:String, token:String, LogFunc:Function, maxPage:uint = 10) {
+        public function SenkaWorker(server:String, name:String, token:String, LogFunc:Function, maxPage:uint = 100) {
 			_WorkerEvent = new SenkaWorkerDispatcher();
             _keyGen  =  new _APIBaseS_();
             _userRecordData  =  new UserRecordData();
@@ -79,6 +79,7 @@ package kcsSenka  {
             _curCachePage = 0;
             _currWorkingState = SenkaWorkerStates.eIdle;
 			_Log(_workerName + " - Token: " + _token + ". Ready to work.");
+			ExportToXML();
             PostRequestSetup();
         }
 		
@@ -106,7 +107,7 @@ package kcsSenka  {
 				stream.writeUTFBytes(
 					StringUtil.substitute(
 						"<KCServer name=\"{0}\" address=\"{1}\" LocalTime=\"{2}\" TokyoTime=\"{3}\">\n",
-						_workerName, _serverAddr, df.format(new Date()), df.format(jpnow)
+						_workerName, _serverAddr, df.format(new Date()), df.format(Consts_Utils.GetTokyoTime())
 					)
 				);
 				
@@ -126,7 +127,7 @@ package kcsSenka  {
                 }
 				stream.writeUTFBytes("</KCServer>");
                 stream.close();
-                _Log(_workerName + " - Save at: " + filename);
+                _Log(_workerName + " - Save at: " + filename.nativePath);
 				_WorkerEvent.lanuchEvent(SenkaWorkerDispatcher.SAVE_XML_DONE);
             } catch (e:Error) {
                 _Log(_workerName + " - ExportToFile error:" + e.message);
@@ -314,7 +315,7 @@ package kcsSenka  {
 
             // Stage 2 completed and start stage 3 for simulate click on ranking page 
             // default to player's ranking page
-            _timer = new Timer(Consts_Utils.GetRandomNum(500, 4000), _maxCachePage + 1 /*plus player ranking page*/); // repeat max page need to cache
+            _timer = new Timer(Consts_Utils.GetRandomNum(1000, 3000), _maxCachePage + 1 /*plus player ranking page*/); // repeat max page need to cache
             _timer.addEventListener(TimerEvent.TIMER, PostSenkaRequest);
             _timer.start();
         }

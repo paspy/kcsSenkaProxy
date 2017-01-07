@@ -17,7 +17,7 @@ package kcsSenka {
 
 		public static const Servers:Object = {
 			server_01:{address:"203.104.209.71",	name:"横須賀鎮守府"},
-			server_02:{address:"203.104.209.87",	name:"新呉鎮守府"},
+			server_02:{address:"203.104.209.87",	name:"呉鎮守府"},
 			server_03:{address:"125.6.184.16",	name:"佐世保鎮守府"},
 			server_04:{address:"125.6.187.205",	name:"舞鶴鎮守府"},
 			server_05:{address:"125.6.187.229",	name:"大湊警備府"},
