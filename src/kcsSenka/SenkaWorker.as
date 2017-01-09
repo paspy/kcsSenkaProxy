@@ -79,7 +79,7 @@ package kcsSenka  {
             _curCachePage = 0;
             _currWorkingState = SenkaWorkerStates.eIdle;
 			_Log(_workerName + " - Token: " + _token + ". Ready to work.");
-			ExportToXML();
+//			ExportToXML();
             PostRequestSetup();
         }
 		
@@ -88,7 +88,7 @@ package kcsSenka  {
 		public function get Progress():Number { return _workerProgress > 100 ? 100 : _workerProgress; }
 
         public function ExportToXML():void {
-//            if (_currWorkingState != SenkaWorkerStates.eFinished) return;
+            if (_currWorkingState != SenkaWorkerStates.eFinished) return;
 			var df:DateTimeFormatter = new DateTimeFormatter(LocaleID.DEFAULT);
 			var jpnow:Date = Consts_Utils.GetTokyoTime();
 			df.setDateTimePattern("yyyy-MM-dd_HH");

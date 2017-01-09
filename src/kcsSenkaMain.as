@@ -5,10 +5,11 @@ package {
     import flash.events.NativeWindowBoundsEvent;
     import flash.globalization.DateTimeFormatter;
     import flash.globalization.LocaleID;
+    import flash.system.Worker;
     import flash.text.TextField;
     import flash.text.TextFieldType;
     import flash.text.TextFormat;
-
+    
     import kcsSenka.Consts_Utils;
     import kcsSenka.SenkaWorker;
 
@@ -39,6 +40,8 @@ package {
 		
         private var senkaWorker:SenkaWorker;
 		private var inputToken:String;
+		
+		private var senkaWorkers:Worker;
 
         private function CreateTextField(x:int, y:int, labelWidth:int, label:String, defaultValue:String = '', editable:Boolean = true, width:int = 200, height:int = 20):TextField {
 
