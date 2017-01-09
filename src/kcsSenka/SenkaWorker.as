@@ -15,6 +15,8 @@ package kcsSenka  {
     import flash.net.URLRequestHeader;
     import flash.net.URLRequestMethod;
     import flash.net.URLVariables;
+    import flash.system.MessageChannel;
+	import flash.system.Worker;
     import flash.utils.Timer;
     
     import mx.utils.StringUtil;
@@ -28,8 +30,7 @@ package kcsSenka  {
 
     public class SenkaWorker {
 
-        private var _Log:Function;
-		private var _WorkerEvent:SenkaWorkerDispatcher;
+//        private var _Log:Function;
         private var _apiUrl:String;
         private var _cachePageTimers:Vector.<Timer>; // for launch a pile of delay timers at onece, so ugly lol
         private var _curCachePage:int;
@@ -61,26 +62,31 @@ package kcsSenka  {
 
         private var _userRecordData:UserRecordData; // contains user record data
         private var _workerProgress:Number;
+		
+		private var logChannel:MessageChannel;
+		private var resultChannel:MessageChannel;
 
-        public function SenkaWorker(server:String, name:String, token:String, LogFunc:Function, maxPage:uint = 100) {
-			_WorkerEvent = new SenkaWorkerDispatcher();
+        public function SenkaWorker(server:String, name:String, token:String, maxPage:uint = 100) {
+			
+			// These are for sending messages to the parent worker
+			logChannel = Worker.current.getSharedProperty("logChannel") as MessageChannel;
+			resultChannel = Worker.current.getSharedProperty("resultChannel") as MessageChannel;
+			
             _keyGen  =  new _APIBaseS_();
             _userRecordData  =  new UserRecordData();
             _rankDataList  =  new Vector.<RankingData>();
             _cachePageTimers  =  new Vector.<Timer>();
             _workerProgress  =  0;
-            _memberId = "";
             _apiUrl = "http://" + server + "/kcsapi/";
 			_serverAddr = server;
             _token = token;
 			_workerName = name;
-            _Log = LogFunc;
             _maxCachePage = maxPage;
             _curCachePage = 0;
             _currWorkingState = SenkaWorkerStates.eIdle;
 			_Log(_workerName + " - Token: " + _token + ". Ready to work.");
-//			ExportToXML();
             PostRequestSetup();
+			
         }
 		
 		public function get WorkerName():String { return _workerName; }
@@ -128,7 +134,6 @@ package kcsSenka  {
 				stream.writeUTFBytes("</KCServer>");
                 stream.close();
                 _Log(_workerName + " - Save at: " + filename.nativePath);
-				_WorkerEvent.lanuchEvent(SenkaWorkerDispatcher.SAVE_XML_DONE);
             } catch (e:Error) {
                 _Log(_workerName + " - ExportToFile error:" + e.message);
             }
@@ -334,19 +339,17 @@ package kcsSenka  {
                 _timer.removeEventListener(TimerEvent.TIMER, PostSenkaRequest);
                 _timer = null;
                 _currWorkingState = SenkaWorkerStates.eFinished;
-				_WorkerEvent.lanuchEvent(SenkaWorkerDispatcher.FETCH_DONE);	// all fetch work done
 				ExportToXML();
             }
         }
+		
+		private function _Log(text:String):void {
+			var date:Date = new Date();
+			var df:DateTimeFormatter = new DateTimeFormatter(LocaleID.DEFAULT);
+			df.setDateTimePattern("[HH:mm:ss] ");
+			var log:String = df.format(date) + text + "\n";
+			
+			logChannel.send(log);
+		}
     }
-}
-
-import flash.events.EventDispatcher;
-import flash.events.Event;
-
-class SenkaWorkerDispatcher extends EventDispatcher {
-	public static const ACTION:String = "action";
-	public static const FETCH_DONE:String = "fetch done";
-	public static const SAVE_XML_DONE:String = "save xml done";
-	public function lanuchEvent(evt:String):void { dispatchEvent(new Event(evt)); }
 }
