@@ -29,7 +29,6 @@ package {
 			Log("Cautions: This program may causes your Kancolle account being BAN.");
 			Log("Only use secondary account for testing and use as your own risk.");
         }
-		
         
         private var logField:TextField;
 		private var tokenField:TextField;
@@ -42,6 +41,81 @@ package {
 		private var inputToken:String;
 		
 		private var senkaWorkers:Worker;
+		
+		
+		private function Log(text:String):void {
+			var date:Date = new Date();
+			var df:DateTimeFormatter = new DateTimeFormatter(LocaleID.DEFAULT);
+			df.setDateTimePattern("[HH:mm:ss] ");
+			logField.appendText(df.format(date) + text + "\n");
+			logField.scrollV = logField.maxScrollV;
+			trace(df.format(date) + text);
+		}
+		
+		private function OnClickStartWorker(event:MouseEvent):void {
+			if (tokenField.text.length > 0 && senkaWorker != null) {
+				DisableSelctions();
+				senkaWorker.StartWorker();
+			} else {
+				Log("Please select a server or set API token.");
+			}
+		}
+		
+		private function DisableSelctions():void {
+			for each(var i:TextField in serversSelections) {
+				i.alpha = 0.95;
+				
+				i.htmlText = (i.text == senkaWorker.WorkerName)?
+					"<font size='15' color='#FF8080'><u><b><p align='center'>" + i.text + "</p align='center'></b></u></font>"
+					:
+					"<font size='14' color='#808080'><u><p align='center'>" + i.text + "</p align='center'></u></font>"
+			}
+		}
+		
+		private function EnableSelctions():void {
+			for each(var i:TextField in serversSelections) {
+				i.alpha = 1;
+				i.htmlText = "<font size='14'><u><p align='center'>" + i.text + "</p align='center'></u></font>";
+			}
+		}
+
+		
+		private function SetupUI():void {
+			var lineSpace:int = 20;
+			var windowWidth:int = this.stage.nativeWindow.width;
+			var windowHeigh:int = this.stage.nativeWindow.height;
+			tokenField = CreateTextField(20, 10, 100, "API Token: ", "", true, 400);
+			
+			StartWorkerBtn = CreateTextButton(tokenField.width + 110, 10, "Start Worker", OnClickStartWorker);
+			
+			serversSelections = new Vector.<Object>();
+			var servers:Array = Consts_Utils.GetSortedPairs(Consts_Utils.Servers);
+			for(var i:int=0; i<servers.length; i+=3) {
+				for (var j:int=0; j<3; j++) {
+					if (i+j<20) {
+						var a:String = servers[i+j].value.address;
+						var n:String = servers[i+j].value.name;
+						var f:Function = function(e:Event):void {
+							if (senkaWorker!=null && 
+								senkaWorker.WorkerName == e.target.text ||
+								e.target.alpha < 1 || tokenField.text.length < 1) return;
+							for each(var item:Object in Consts_Utils.Servers) {
+								if (e.target.text == item.name) {
+									senkaWorker = new SenkaWorker(item.address, item.name, tokenField.text, Log);
+									break;
+								}
+							}
+						};
+						serversSelections.push(CreateTextSelction(20 + 180*j, 50 + StartWorkerBtn.height*i/3, n, f));
+					}
+				}
+			}
+			
+			logField = CreateTextField(20, windowHeigh / 2, 50, "Log", "", false, windowWidth - 50 - 10, windowHeigh / 2 - 30);
+			this.stage.nativeWindow.activate();
+			this.stage.nativeWindow.addEventListener(Event.CLOSING, function(e:Event):void {/*TO DO Release here*/ });
+			this.stage.nativeWindow.addEventListener(NativeWindowBoundsEvent.RESIZING, function(e:NativeWindowBoundsEvent):void{ e.preventDefault(); });
+		}
 
         private function CreateTextField(x:int, y:int, labelWidth:int, label:String, defaultValue:String = '', editable:Boolean = true, width:int = 200, height:int = 20):TextField {
 
@@ -133,77 +207,6 @@ package {
 			return button;
 		}
 
-        private function Log(text:String):void {
-            var date:Date = new Date();
-            var df:DateTimeFormatter = new DateTimeFormatter(LocaleID.DEFAULT);
-            df.setDateTimePattern("[HH:mm:ss] ");
-            logField.appendText(df.format(date) + text + "\n");
-            logField.scrollV = logField.maxScrollV;
-            trace(df.format(date) + text);
-        }
 
-		private function OnClickStartWorker(event:MouseEvent):void {
-			if (tokenField.text.length > 0 && senkaWorker != null) {
-				DisableSelctions();
-				senkaWorker.StartWorker();
-			} else {
-				Log("Please select a server or set API token.");
-			}
-		}
-		
-		private function DisableSelctions():void {
-			for each(var i:TextField in serversSelections) {
-				i.alpha = 0.95;
-				
-					i.htmlText = (i.text == senkaWorker.WorkerName)?
-						"<font size='15' color='#FF8080'><u><b><p align='center'>" + i.text + "</p align='center'></b></u></font>"
-						:
-						"<font size='14' color='#808080'><u><p align='center'>" + i.text + "</p align='center'></u></font>"
-			}
-		}
-		
-		private function EnableSelctions():void {
-			for each(var i:TextField in serversSelections) {
-				i.alpha = 1;
-				i.htmlText = "<font size='14'><u><p align='center'>" + i.text + "</p align='center'></u></font>";
-			}
-		}
-
-        private function SetupUI():void {
-			var lineSpace:int = 20;
-            var windowWidth:int = this.stage.nativeWindow.width;
-            var windowHeigh:int = this.stage.nativeWindow.height;
-			tokenField = CreateTextField(20, 10, 100, "API Token: ", "", true, 400);
-			
-			StartWorkerBtn = CreateTextButton(tokenField.width + 110, 10, "Start Worker", OnClickStartWorker);
-			
-			serversSelections = new Vector.<Object>();
-			var servers:Array = Consts_Utils.GetSortedPairs(Consts_Utils.Servers);
-			for(var i:int=0; i<servers.length; i+=3) {
-				for (var j:int=0; j<3; j++) {
-					if (i+j<20) {
-						var a:String = servers[i+j].value.address;
-						var n:String = servers[i+j].value.name;
-						var f:Function = function(e:Event):void {
-							if (senkaWorker!=null && 
-								senkaWorker.WorkerName == e.target.text ||
-								e.target.alpha < 1 || tokenField.text.length < 1) return;
-							for each(var item:Object in Consts_Utils.Servers) {
-								if (e.target.text == item.name) {
-									senkaWorker = new SenkaWorker(item.address, item.name, tokenField.text, Log);
-									break;
-								}
-							}
-						};
-						serversSelections.push(CreateTextSelction(20 + 180*j, 50 + StartWorkerBtn.height*i/3, n, f));
-					}
-				}
-			}
-			
-            logField = CreateTextField(20, windowHeigh / 2, 50, "Log", "", false, windowWidth - 50 - 10, windowHeigh / 2 - 30);
-            this.stage.nativeWindow.activate();
-            this.stage.nativeWindow.addEventListener(Event.CLOSING, function(e:Event):void {/*TO DO Release here*/ });
-            this.stage.nativeWindow.addEventListener(NativeWindowBoundsEvent.RESIZING, function(e:NativeWindowBoundsEvent):void{ e.preventDefault(); });
-        }
     }
 }
