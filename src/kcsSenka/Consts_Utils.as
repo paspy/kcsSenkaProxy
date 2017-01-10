@@ -94,21 +94,42 @@ package kcsSenka {
 		}
 		
         // custom decoder
-		// Source: http://ch.nicovideo.jp/arisu_yaya/blomaga/ar941858
-        public static const Magic_R:Array = [8931, 1201, 1156, 5061, 4569, 4732, 3779, 4568, 5695, 4619, 4912, 5669, 6586];
-        public static const Magic_L:Array = [47, 23, 47, 53, 32, 29, 69, 18, 89, 30];
-        public static const Magic_M:Array = [10784, 3054, 3009, 6914, 6422, 6585, 5632, 6421, 7548, 6472, 6765, 7522, 8439];
+		// Source: 
+		// http://ch.nicovideo.jp/arisu_yaya/blomaga/ar941858
+		// https://github.com/yukixz/kctools/blob/master/rank.py
+        private static const Magic_R:Array = [8931, 1201, 1156, 5061, 4569, 4732, 3779, 4568, 5695, 4619, 4912, 5669, 6586];
+        private static const Magic_M:Array = [10784, 3054, 3009, 6914, 6422, 6585, 5632, 6421, 7548, 6472, 6765, 7522, 8439];
+		private static const Magic_Il:Array =
+			[7732, 7148, 6663, 2139, 9018, 4132653, 1033183, 4359, 5224, 8390, 13, 5238, 3791, 10, 8268, 4654, 1000, 1875979];
 
         public static function DecodeRateAndMedal(memberId:Number, rankNo:Number, maskedRate:Number, maskedMedal:Number):Object {
-            var r:Number = Magic_R[rankNo % 13];
+			var I1_func:Function = function I1(param1:int):int {
+				if (param1 === 0) {
+					return 1;
+				}
+				const s_sqrt13:String = Math.sqrt(13).toString();
+				return s_sqrt13.indexOf(param1.toString());
+			}
+			
+			var _l_:Function = function _l_(memberId, firstTwo = false): Number {
+				const magicNum:Number = Magic_Il[I1_func(memberId % 10)];
+				return firstTwo ? parseInt(magicNum.toString().substr(0/* NaN */, 2)) : magicNum;
+			}
+			
+			var magic_l:Array = [];
+			for (var i:int = 0; i < 10; i++) {
+				magic_l.push(_l_(i, true))
+			}
+			
+			var r:Number = Magic_R[rankNo % 13];
             var m:Number = Magic_M[rankNo % 13];
-            var l:Number = Magic_L[memberId % 10];
+            var l:Number = magic_l[memberId % 10];
             var rateAndMedal:Object = new Object();
             rateAndMedal.rate = maskedRate / (r * l) - 73.0 - 18.0;
             rateAndMedal.medal = maskedMedal / m - 157.0;
             return rateAndMedal;
         }
-
+		
         public function Consts_Utils() {
             super();
         }

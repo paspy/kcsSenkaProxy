@@ -1,6 +1,5 @@
 package {
-    import com.adobe.example.vo.CountResult;
-    
+	
     import flash.display.Shape;
     import flash.display.Sprite;
     import flash.events.Event;
@@ -207,7 +206,7 @@ package {
 			msg.server = Consts_Utils.ServerNameToAddr[e.target.text];
 			msg.workName = e.target.text;
 			msg.token = tokenField.text;
-			msg.maxPage = 100;
+			msg.maxPage = 100;				// page number
 			activeWorkerMsg[e.target.text] = msg;
 			Log("Server " + e.target.text + " now is an active worker.");
 			Log("Token is " + msg.token + ".");
