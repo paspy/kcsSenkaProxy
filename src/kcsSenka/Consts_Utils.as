@@ -94,6 +94,7 @@ package kcsSenka {
 		}
 		
         // custom decoder
+		// Source: http://ch.nicovideo.jp/arisu_yaya/blomaga/ar941858
         public static const Magic_R:Array = [8931, 1201, 1156, 5061, 4569, 4732, 3779, 4568, 5695, 4619, 4912, 5669, 6586];
         public static const Magic_L:Array = [47, 23, 47, 53, 32, 29, 69, 18, 89, 30];
         public static const Magic_M:Array = [10784, 3054, 3009, 6914, 6422, 6585, 5632, 6421, 7548, 6472, 6765, 7522, 8439];

@@ -40,7 +40,7 @@ package {
 				activeWorkerMsg = new Dictionary();
 				
 				bgWorkerCommandChannels = new Dictionary();
-				progressChannels = new Dictionary();
+				workerLogChannels = new Dictionary();
 				resultChannels = new Dictionary();
 				
 				SetupUI();
@@ -51,7 +51,7 @@ package {
 				// create 20 workers
 				for each(var item:Object in Consts_Utils.Servers) {
 					
-					senkaWorkers[item.name] = WorkerDomain.current.createWorker(this.loaderInfo.bytes);
+					senkaWorkers[item.name] = WorkerDomain.current.createWorker(this.loaderInfo.bytes, true);
 					
 					bgWorkerCommandChannels[item.name] = Worker.current.createMessageChannel((senkaWorkers[item.name] as Worker));
 					
@@ -59,11 +59,11 @@ package {
 						setSharedProperty("incomingCommandChannel", bgWorkerCommandChannels[item.name] as MessageChannel);
 					
 					
-					progressChannels[item.name] = (senkaWorkers[item.name] as Worker).createMessageChannel(Worker.current);
+					workerLogChannels[item.name] = (senkaWorkers[item.name] as Worker).createMessageChannel(Worker.current);
 					
-					(progressChannels[item.name] as MessageChannel).addEventListener(Event.CHANNEL_MESSAGE, handleProgressMessage);
+					(workerLogChannels[item.name] as MessageChannel).addEventListener(Event.CHANNEL_MESSAGE, handleWorkerLogMessage);
 					
-					(senkaWorkers[item.name] as Worker).setSharedProperty("logChannel", (progressChannels[item.name] as MessageChannel));
+					(senkaWorkers[item.name] as Worker).setSharedProperty("logChannel", (workerLogChannels[item.name] as MessageChannel));
 					
 					resultChannels[item.name] = (senkaWorkers[item.name] as Worker).createMessageChannel(Worker.current);
 					resultChannels[item.name].addEventListener(Event.CHANNEL_MESSAGE, handleResultMessage);
@@ -104,9 +104,10 @@ package {
 		private var activeWorkerMsg:Dictionary;
 		
 		private var bgWorkerCommandChannels:Dictionary;
-		private var progressChannels:Dictionary;
+		private var workerLogChannels:Dictionary;
 		private var resultChannels:Dictionary;
 		
+		// problem used to here 
 		private function handleBGWorkerStateChange(event:Event):void
 		{
 			if (event.target.state == WorkerState.RUNNING) 
@@ -115,18 +116,20 @@ package {
 					if (activeWorkerMsg[server.name] != null) {
 						Log(server.name + " worker has been started.");
 						bgWorkerCommandChannels[server.name].send(activeWorkerMsg[server.name]);
-						
+						activeWorkerMsg[server.name] = null;
 					}
 				}
 			}
 		}
 		
 		
-		private function handleProgressMessage(event:Event):void
+		private function handleWorkerLogMessage(event:Event):void
 		{
 //			var percentComplete:Number = progressChannel.receive();
 //			setPercentComplete(percentComplete);
 //			_statusText.text = Math.round(percentComplete).toString() + "% complete";
+			var log:String = (event.target as MessageChannel).receive();
+			Log(log);
 		}
 		
 		
@@ -193,14 +196,8 @@ package {
 					senkaWorkers[server.name].start();
 				}
 			}
-			
-//			if (tokenField.text.length > 0 && senkaWorker != null) {
-//				DisableSelctions();
-//				
-//			} else {
-//				Log("Please select a server or set API token.");
-//				
-//			}
+			DisableSelctions();
+
 		}
 		
 		private function OnClickServerSelection(e:Event):void {

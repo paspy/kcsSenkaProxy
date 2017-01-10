@@ -92,20 +92,28 @@ package kcsSenka  {
 		public function get WorkerName():String { return _workerName; }
         
 		public function get Progress():Number { return _workerProgress > 100 ? 100 : _workerProgress; }
-
+		
+		public function StartWorker():void {
+			if (_currWorkingState  ==  SenkaWorkerStates.eIdle) {
+				_currWorkingState = SenkaWorkerStates.eRunning;
+				// stage 1 simulate click on Pay Item page
+				_timer = new Timer(Consts_Utils.GetRandomNum(100, 1000));
+				_timer.addEventListener(TimerEvent.TIMER, PostPayItemRequest);
+				_timer.start();
+			}
+		}
+		
         public function ExportToXML():void {
             if (_currWorkingState != SenkaWorkerStates.eFinished) return;
 			var df:DateTimeFormatter = new DateTimeFormatter(LocaleID.DEFAULT);
 			var jpnow:Date = Consts_Utils.GetTokyoTime();
 			df.setDateTimePattern("yyyy-MM-dd_HH");
             try {
-				var filename:File = File.applicationStorageDirectory.resolvePath(".\\SenkaData\\" + _workerName);
+				var filename:File = File.documentsDirectory.resolvePath(".\\SenkaData\\" + _workerName);
 				filename.createDirectory();
 				var updateHour:Date = jpnow;
 				updateHour.setHours(jpnow.hours>=15?15:3);
 				filename = filename.resolvePath(".\\" + df.format(updateHour) + ".xml");
-				
-//				var filename:File = File.applicationDirectory.resolvePath("SenkaData").resolvePath(_workerName);
                 var stream:FileStream = new FileStream();
                 stream.open(filename, FileMode.WRITE);
 				stream.writeUTFBytes("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
@@ -139,54 +147,38 @@ package kcsSenka  {
             }
         }
 
+		private function PostRequestSetup():void {
+			var customHeader:Array = [new URLRequestHeader("Referer", Consts_Utils.POST_Referer), new URLRequestHeader("x-flash-version", Consts_Utils.POST_FlashVersion)];
+			_payItemRequest = new URLRequest(_apiUrl + Consts_Utils.PayItemAPI);
+			_recordRequest = new URLRequest(_apiUrl + Consts_Utils.RecordAPI);
+			_senkaRequest = new URLRequest(_apiUrl + Consts_Utils.SenkaAPI);
+			_payItemVar = new URLVariables();
+			_recordVar = new URLVariables();
+			_senkaVar = new URLVariables();
+			
+			_payItemVar.api_token = _token;
+			_payItemVar.api_verno = Consts_Utils.Magic_api_verno;
+			
+			_recordVar.api_token = _token;
+			_recordVar.api_verno = Consts_Utils.Magic_api_verno;
+			
+			// add api ranking and pageNo on load function
+			_senkaVar.api_token = _token;
+			_senkaVar.api_verno = Consts_Utils.Magic_api_verno;
+			// add api ranking and pageNo on load function
+			
+			_payItemRequest.method = URLRequestMethod.POST
+			_recordRequest.method = URLRequestMethod.POST;
+			_senkaRequest.method = URLRequestMethod.POST;
+			_payItemRequest.userAgent = Consts_Utils.POST_UserAgent;
+			_recordRequest.userAgent = Consts_Utils.POST_UserAgent;
+			_senkaRequest.userAgent = Consts_Utils.POST_UserAgent;
+			_payItemRequest.requestHeaders = customHeader;
+			_recordRequest.requestHeaders = customHeader;
+			_senkaRequest.requestHeaders = customHeader;
+			_Log(_workerName + " - PostRequestSetup initialized.");
+		}
 
-        public function StartWorker():void {
-            if (_currWorkingState  ==  SenkaWorkerStates.eIdle) {
-                _currWorkingState = SenkaWorkerStates.eRunning;
-                // stage 1 simulate click on Pay Item page
-                _timer = new Timer(Consts_Utils.GetRandomNum(100, 1000));
-                _timer.addEventListener(TimerEvent.TIMER, PostPayItemRequest);
-                _timer.start();
-            }
-        }
-
-        private function PostCompleteHandler(event:Event):void {
-            _urlLoader.removeEventListener("complete", PostCompleteHandler);
-            _urlLoader.removeEventListener("ioError", PostIOErrorHandler);
-            _urlLoader.removeEventListener("securityError", PostSecurityErrorHandler);
-            var postResult:String = String(event.target.data);
-            var jsonArr:Array = postResult.match(/svdata=(.*)/);
-            var api_data:* = "";
-            if (jsonArr && jsonArr.length > 1) {
-                api_data = jsonArr[1];
-
-            } else if (!jsonArr) {
-                api_data = postResult;
-
-            } else {
-                _Log(_workerName + " - API result parse error - " + event);
-                return;
-            }
-            _resultJson = null;
-            try {
-                _resultJson = JSON.parse(api_data);
-            } catch (e:Error) {
-                _Log(_workerName + " - JSON result parse error - " + e.message);
-                return;
-            }
-            if (_resultJson.api_result !=  1) {
-				_Log(_resultJson.api_result_msg + "Error code:" + _resultJson.api_result);
-				return;
-            }
-            _setDataFunc(_resultJson.api_data);
-        }
-
-        private function PostIOErrorHandler(event:IOErrorEvent):void {
-            _Log(_workerName + " - Error! PostIOErrorHandler: " + event);
-            _urlLoader.removeEventListener("complete", PostCompleteHandler);
-            _urlLoader.removeEventListener("ioError", PostIOErrorHandler);
-            _urlLoader.removeEventListener("securityError", PostSecurityErrorHandler);
-        }
 
         private function PostPayItemRequest(event:TimerEvent):void {
             // reset timer for futuer use
@@ -226,75 +218,81 @@ package kcsSenka  {
                 _Log(_workerName + " - Exception occured at PostRecordRequest: " + e.message);
             }
         }
+		
+		private function PostSenkaRequest(event:TimerEvent /*, pageNo:int  =  -1*/):void {
+			
+			_urlLoader = new URLLoader();
+			_urlLoader.addEventListener("complete", PostCompleteHandler);
+			_urlLoader.addEventListener("ioError", PostIOErrorHandler);
+			_urlLoader.addEventListener("securityError", PostSecurityErrorHandler);
+			_setDataFunc = SetSenkaData;
+			try {
+				if (_curCachePage > 0 && _curCachePage < 100)
+					_senkaVar["api_pageno"] = _curCachePage;
+				if (_curCachePage > 100)
+					throw ArgumentError;
+				var kenGenFunc:Object = _keyGen._createKey();
+				var memberId:int = parseInt(_memberId);
+				if (isNaN(memberId))
+					throw ArgumentError;
+				_senkaVar.api_ranking = _keyGen.__(memberId, _keyGen._createKey());
+				_Log(_workerName + " - api_ranking: " + _senkaVar["api_ranking"]);
+				_senkaRequest.data = _senkaVar;
+				_urlLoader.load(_senkaRequest); // send request to download data
+				_Log(_workerName + " - PostSenkaRequest has been posted.");
+				
+			} catch (e:Error) {
+				_Log(_workerName + " - Exception occured at PostSenkaRequest, page: " + _curCachePage + " - " + e.message);
+				_timer.stop();
+				_timer.removeEventListener(TimerEvent.TIMER, PostSenkaRequest);
+				
+			}
+		}
 
-        private function PostRequestSetup():void {
-            var customHeader:Array = [new URLRequestHeader("Referer", Consts_Utils.POST_Referer), new URLRequestHeader("x-flash-version", Consts_Utils.POST_FlashVersion)];
-            _payItemRequest = new URLRequest(_apiUrl + Consts_Utils.PayItemAPI);
-            _recordRequest = new URLRequest(_apiUrl + Consts_Utils.RecordAPI);
-            _senkaRequest = new URLRequest(_apiUrl + Consts_Utils.SenkaAPI);
-            _payItemVar = new URLVariables();
-            _recordVar = new URLVariables();
-            _senkaVar = new URLVariables();
-
-            _payItemVar.api_token = _token;
-            _payItemVar.api_verno = Consts_Utils.Magic_api_verno;
-
-            _recordVar.api_token = _token;
-            _recordVar.api_verno = Consts_Utils.Magic_api_verno;
-
-            // add api ranking and pageNo on load function
-            _senkaVar.api_token = _token;
-            _senkaVar.api_verno = Consts_Utils.Magic_api_verno;
-            // add api ranking and pageNo on load function
-
-            _payItemRequest.method = URLRequestMethod.POST
-            _recordRequest.method = URLRequestMethod.POST;
-            _senkaRequest.method = URLRequestMethod.POST;
-            _payItemRequest.userAgent = Consts_Utils.POST_UserAgent;
-            _recordRequest.userAgent = Consts_Utils.POST_UserAgent;
-            _senkaRequest.userAgent = Consts_Utils.POST_UserAgent;
-            _payItemRequest.requestHeaders = customHeader;
-            _recordRequest.requestHeaders = customHeader;
-            _senkaRequest.requestHeaders = customHeader;
-            _Log(_workerName + " - PostRequestSetup initialized.");
-        }
-
-        private function PostSecurityErrorHandler(event:SecurityErrorEvent):void {
-            _Log(_workerName + " - Error! PostSecurityErrorHandler: " + event);
-            _urlLoader.removeEventListener("complete", PostCompleteHandler);
-            _urlLoader.removeEventListener("ioError", PostIOErrorHandler);
-            _urlLoader.removeEventListener("securityError", PostSecurityErrorHandler);
-        }
-
-        private function PostSenkaRequest(event:TimerEvent /*, pageNo:int  =  -1*/):void {
-
-            _urlLoader = new URLLoader();
-            _urlLoader.addEventListener("complete", PostCompleteHandler);
-            _urlLoader.addEventListener("ioError", PostIOErrorHandler);
-            _urlLoader.addEventListener("securityError", PostSecurityErrorHandler);
-            _setDataFunc = SetSenkaData;
-            try {
-                if (_curCachePage > 0 && _curCachePage < 100)
-                    _senkaVar["api_pageno"] = _curCachePage;
-                if (_curCachePage > 100)
-                    throw ArgumentError;
-                var kenGenFunc:Object = _keyGen._createKey();
-                var memberId:int = parseInt(_memberId);
-                if (isNaN(memberId))
-                    throw ArgumentError;
-                _senkaVar.api_ranking = _keyGen.__(memberId, _keyGen._createKey());
-                _Log(_workerName + " - api_ranking: " + _senkaVar["api_ranking"]);
-                _senkaRequest.data = _senkaVar;
-                _urlLoader.load(_senkaRequest); // send request to download data
-                _Log(_workerName + " - PostSenkaRequest has been posted.");
-
-            } catch (e:Error) {
-                _Log(_workerName + " - Exception occured at PostSenkaRequest, page: " + _curCachePage + " - " + e.message);
-                _timer.stop();
-                _timer.removeEventListener(TimerEvent.TIMER, PostSenkaRequest);
-
-            }
-        }
+		private function PostCompleteHandler(event:Event):void {
+			_urlLoader.removeEventListener("complete", PostCompleteHandler);
+			_urlLoader.removeEventListener("ioError", PostIOErrorHandler);
+			_urlLoader.removeEventListener("securityError", PostSecurityErrorHandler);
+			var postResult:String = String(event.target.data);
+			var jsonArr:Array = postResult.match(/svdata=(.*)/);
+			var api_data:* = "";
+			if (jsonArr && jsonArr.length > 1) {
+				api_data = jsonArr[1];
+				
+			} else if (!jsonArr) {
+				api_data = postResult;
+				
+			} else {
+				_Log(_workerName + " - API result parse error - " + event);
+				return;
+			}
+			_resultJson = null;
+			try {
+				_resultJson = JSON.parse(api_data);
+			} catch (e:Error) {
+				_Log(_workerName + " - JSON result parse error - " + e.message);
+				return;
+			}
+			if (_resultJson.api_result !=  1) {
+				_Log(_resultJson.api_result_msg + "Error code:" + _resultJson.api_result);
+				return;
+			}
+			_setDataFunc(_resultJson.api_data);
+		}
+		
+		private function PostIOErrorHandler(event:IOErrorEvent):void {
+			_Log(_workerName + " - Error! PostIOErrorHandler: " + event);
+			_urlLoader.removeEventListener("complete", PostCompleteHandler);
+			_urlLoader.removeEventListener("ioError", PostIOErrorHandler);
+			_urlLoader.removeEventListener("securityError", PostSecurityErrorHandler);
+		}
+		
+		private function PostSecurityErrorHandler(event:SecurityErrorEvent):void {
+			_Log(_workerName + " - Error! PostSecurityErrorHandler: " + event);
+			_urlLoader.removeEventListener("complete", PostCompleteHandler);
+			_urlLoader.removeEventListener("ioError", PostIOErrorHandler);
+			_urlLoader.removeEventListener("securityError", PostSecurityErrorHandler);
+		}
 
         // dummy result for simulation purpose, api data should be null
         private function SetPayItemData(api_data:Object):void {
@@ -320,7 +318,7 @@ package kcsSenka  {
 
             // Stage 2 completed and start stage 3 for simulate click on ranking page 
             // default to player's ranking page
-            _timer = new Timer(Consts_Utils.GetRandomNum(1000, 3000), _maxCachePage + 1 /*plus player ranking page*/); // repeat max page need to cache
+            _timer = new Timer(Consts_Utils.GetRandomNum(1200, 2000), _maxCachePage + 1 /*plus player ranking page*/); // repeat max page need to cache
             _timer.addEventListener(TimerEvent.TIMER, PostSenkaRequest);
             _timer.start();
         }
@@ -344,12 +342,7 @@ package kcsSenka  {
         }
 		
 		private function _Log(text:String):void {
-			var date:Date = new Date();
-			var df:DateTimeFormatter = new DateTimeFormatter(LocaleID.DEFAULT);
-			df.setDateTimePattern("[HH:mm:ss] ");
-			var log:String = df.format(date) + text + "\n";
-			
-			logChannel.send(log);
+			logChannel.send(text);
 		}
     }
 }
