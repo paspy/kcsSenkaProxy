@@ -122,21 +122,16 @@ package {
 		}
 		
 		
-		private function handleWorkerLogMessage(event:Event):void
-		{
-//			var percentComplete:Number = progressChannel.receive();
-//			setPercentComplete(percentComplete);
-//			_statusText.text = Math.round(percentComplete).toString() + "% complete";
+		private function handleWorkerLogMessage(event:Event):void {
 			var log:String = (event.target as MessageChannel).receive();
 			Log(log);
 		}
 		
 		
-		private function handleResultMessage(event:Event):void
-		{
-//			var result:CountResult = resultChannel.receive() as CountResult;
-//			setPercentComplete(100);
-//			_statusText.text = "Counted to " + result.countTarget + " in " + (Math.round(result.countDurationSeconds * 10) / 10) + " seconds";
+		private function handleResultMessage(event:Event):void {
+			var log:Object = (event.target as MessageChannel).receive();
+			Log(log.log);
+			
 		}
 		
 		// ------- Parent UI Stuff-------
@@ -206,7 +201,7 @@ package {
 			msg.server = Consts_Utils.ServerNameToAddr[e.target.text];
 			msg.workName = e.target.text;
 			msg.token = tokenField.text;
-			msg.maxPage = 100;				// page number
+			msg.maxPage = 99;				// page number
 			activeWorkerMsg[e.target.text] = msg;
 			Log("Server " + e.target.text + " now is an active worker.");
 			Log("Token is " + msg.token + ".");
