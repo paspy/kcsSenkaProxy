@@ -22,7 +22,6 @@ package kcsSenka {
 			server_04:{address:"125.6.187.205",	name:"舞鶴鎮守府"},
 			server_05:{address:"125.6.187.229",	name:"大湊警備府"},
 			server_06:{address:"125.6.187.253",	name:"トラック泊地"},
-			
 			server_07:{address:"125.6.188.25",	name:"リンガ泊地"},
 			server_08:{address:"203.104.248.135",	name:"ラバウル基地"},
 			server_09:{address:"125.6.189.7",		name:"ショートランド泊地"},

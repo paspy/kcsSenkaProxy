@@ -141,12 +141,13 @@ package kcsSenka  {
                 }
 				stream.writeUTFBytes("</KCServer>");
                 stream.close();
-				var workerResult:Object = new Object();
-				workerResult.command = "Finished";
-				workerResult.log = _workerName + " - Save at: " + filename.nativePath;
-				
-				resultChannel.send(workerResult);
+//				var workerResult:Object = new Object();
+//				workerResult.command = "Finished";
+//				workerResult.log = _workerName + " - Save at: " + filename.nativePath;
+//				
+//				resultChannel.send(workerResult);
 //                _Log(_workerName + " - Save at: " + filename.nativePath);
+				_Result(_workerName + " - Save at: " + filename.nativePath);
             } catch (e:Error) {
                 _Log(_workerName + " - ExportToFile error:" + e.message);
             }
@@ -184,7 +185,6 @@ package kcsSenka  {
 //			_Log(_workerName + " - InitPostRequest initialized.");
 		}
 
-
         private function PostPayItemRequest(event:TimerEvent):void {
             // reset timer for futuer use
             _timer.removeEventListener(TimerEvent.TIMER, PostPayItemRequest);
@@ -199,8 +199,9 @@ package kcsSenka  {
             try {
                 _urlLoader.load(_payItemRequest); // send request to download data
                 _Log(_workerName + " - PostPayItemRequest has been posted.");
+				
             } catch (e:Error) {
-                _Log(_workerName + " - Exception occured at PostPayItemRequest: " + e.message);
+				_Result(_workerName + " - Exception occured at PostPayItemRequest: " + e.message);
             }
         }
 
@@ -220,7 +221,7 @@ package kcsSenka  {
                 _Log(_workerName + " - PostRecordRequest has been posted.");
 
             } catch (e:Error) {
-                _Log(_workerName + " - Exception occured at PostRecordRequest: " + e.message);
+				_Result(_workerName + " - Exception occured at PostRecordRequest: " + e.message);
             }
         }
 		
@@ -269,19 +270,19 @@ package kcsSenka  {
 				api_data = postResult;
 				
 			} else {
-				_Log(_workerName + " - API result parse error - " + event);
+				_Result(_workerName + " - API result parse error - " + event);
 				return;
 			}
 			_resultJson = null;
 			try {
 				_resultJson = JSON.parse(api_data);
 			} catch (e:Error) {
-				_Log(_workerName + " - JSON result parse error - " + e.message);
+				_Result(_workerName + " - JSON result parse error - " + e.message);
 				return;
 			}
 			if (_resultJson.api_result != 1) {
-				_Log(_resultJson.api_result_msg + "Error code:" + _resultJson.api_result);
-				_currWorkingState = SenkaWorkerStates.eFinished;
+				_Result(_workerName  + ": "+ _resultJson.api_result_msg + "Error code:" + _resultJson.api_result);
+				return;
 			}
 			_setDataFunc(_resultJson.api_data);
 		}
@@ -364,6 +365,14 @@ package kcsSenka  {
 		
 		private function _Log(text:String):void {
 			logChannel.send(text);
+		}
+		
+		private function _Result(text:String):void {
+			var workerResult:Object = new Object();
+			workerResult.workerName = _workerName;
+			workerResult.command = "workFinished";
+			workerResult.log = text;
+			resultChannel.send(workerResult);
 		}
     }
 }

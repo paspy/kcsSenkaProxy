@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<KCServers>
+    <Token id="01" name="横須賀鎮守府" email=""></Token>
+    <Token id="02" name="呉鎮守府" email=""></Token>
+    <Token id="03" name="佐世保鎮守府" email=""></Token>
+    <Token id="04" name="舞鶴鎮守府" email=""></Token>
+    <Token id="05" name="大湊警備府" email=""></Token>
+    <Token id="06" name="トラック泊地" email=""></Token>
+    <Token id="07" name="リンガ泊地" email=""></Token>
+    <Token id="08" name="ラバウル基地" email=""></Token>
+    <Token id="09" name="ショートランド泊地"></Token>
+    <Token id="10" name="ブイン基地" email=""></Token>
+    <Token id="11" name="タウイタウイ泊地" email=""></Token>
+    <Token id="12" name="パラオ泊地" email=""></Token>
+    <Token id="13" name="ブルネイ泊地" email=""></Token>
+    <Token id="14" name="単冠湾泊地" email=""></Token>
+    <Token id="15" name="幌筵泊地" email=""></Token>
+    <Token id="16" name="宿毛湾泊地" email=""></Token>
+    <Token id="17" name="鹿屋基地" email=""></Token>
+    <Token id="18" name="岩川基地" email=""></Token>
+    <Token id="19" name="佐伯湾泊地" email=""></Token>
+    <Token id="20" name="柱島泊地" email=""></Token>
+</KCServers>
