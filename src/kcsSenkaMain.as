@@ -18,7 +18,6 @@ package {
     import flash.text.TextFieldType;
     import flash.text.TextFormat;
     import flash.utils.Dictionary;
-    import flash.xml.XMLNode;
     
     import kcsSenka.Consts_Utils;
     import kcsSenka.SenkaWorker;
@@ -138,14 +137,27 @@ package {
 		
 		private function handleResultMessage(event:Event):void {
 			var result:Object = (event.target as MessageChannel).receive();
+			Log(result.log);
 			if ( result !=null && result.command == "workFinished") {
 				if((senkaWorkers[result.workerName] as Worker).terminate() && activeWorkerMsg[result.workerName].sent) {
-					Log("Worker Thread: " + result.workerName + " has been terminated.")
+					Log("Worker Thread: " + result.workerName + " has been terminated.(Work Finished)")
 				}
-				activeWorkerMsg[result.workerName] = null;
-				Log(result.log);
+				serversSelections[result.workerName].htmlText =
+					"<font size='14' color='#80FF80'><u><b><p align='center'>" + 
+						serversSelections[result.workerName].text + 
+					"</p align='center'></b></u></font>";
+				
 			}
-			
+			if ( result !=null && result.command == "workError") {
+				if((senkaWorkers[result.workerName] as Worker).terminate() && activeWorkerMsg[result.workerName].sent) {
+					Log("Worker Thread: " + result.workerName + " has been terminated. (Work Error)")
+				}
+				serversSelections[result.workerName].htmlText =
+					"<font size='14' color='#FF0000'><u><b><p align='center'>" + 
+						serversSelections[result.workerName].text + 
+					"</p align='center'></b></u></font>";
+			}
+			activeWorkerMsg[result.workerName] = null;
 		}
 		
 		// ------- Parent UI Stuff-------
@@ -156,7 +168,7 @@ package {
 		
 		private var OpenFileBtn:TextField;
 		private var StartWorkerBtn:TextField;
-		private var serversSelections:Vector.<Object>;
+		private var serversSelections:Dictionary;
         
 		private var inputToken:String;
 		
@@ -170,13 +182,13 @@ package {
 			StartWorkerBtn = CreateTextButton((50 + windowWidth / 2) - 400 + tokenField.width + 110, 50, "Start Worker(s)", OnClickStartWorker);
 			OpenFileBtn = CreateTextButton( 30, 10, "Import Tokens", OnClickOpenTokens);
 			
-			serversSelections = new Vector.<Object>();
+			serversSelections = new Dictionary();
 			var servers:Array = Consts_Utils.GetSortedPairs(Consts_Utils.Servers);
 			for(var i:int=0; i<servers.length; i+=3) {
 				for (var j:int=0; j<3; j++) {
 					if (i+j<20) {
 						var name:String = servers[i+j].value.name;
-						serversSelections.push(CreateTextSelction(20 + 300*j, 100 + StartWorkerBtn.height*i/2, name, OnClickServerSelection));
+						serversSelections[name] = (CreateTextSelction(20 + 300*j, 100 + StartWorkerBtn.height*i/2, name, OnClickServerSelection));
 					}
 				}
 			}
@@ -196,8 +208,8 @@ package {
             trace(df.format(date) + text);
         }
 		
-		private function OnClickStartWorker(event:MouseEvent):void {
-			
+		private function OnClickStartWorker(e:MouseEvent):void {
+			if (e.target.alpha < 1) return;
 			for each(var server:Object in Consts_Utils.Servers) {	
 				if (activeWorkerMsg[server.name] != null && !activeWorkerMsg[server.name].sent) {
 					senkaWorkers[server.name].start();
@@ -208,7 +220,7 @@ package {
 
 		}
 		
-		private function OnClickOpenTokens(event:MouseEvent):void {
+		private function OnClickOpenTokens(e:MouseEvent):void {
 			var fileToOpen:File = new File();
 			var txtFilter:FileFilter = new FileFilter("*.xml", "*.xml");
 			
@@ -236,9 +248,9 @@ package {
 			tokenField.text = "";
 		};
 		
-		private function ImportXMLTokensHandler(event:Event): void {
+		private function ImportXMLTokensHandler(e:Event): void {
 			var stream:FileStream = new FileStream();
-			stream.open((event.target as File), FileMode.READ);
+			stream.open((e.target as File), FileMode.READ);
 			var fileData:String = stream.readUTFBytes(stream.bytesAvailable).replace(/[\u000d\u000a]+/g,""); //remove any LF CR
 			var xmlDoc:XML = new XML(fileData);
 			var tokenList:XMLList = xmlDoc.Token;
@@ -270,7 +282,7 @@ package {
 			for each(var i:TextField in serversSelections) {
 				i.alpha = 0.95;
 				i.htmlText = (activeWorkerMsg[i.text] != null)?
-					"<font size='15' color='#80FF80'><u><b><p align='center'>" + i.text + "</p align='center'></b></u></font>"
+					"<font size='15' color='#8080FF'><u><b><p align='center'>" + i.text + "</p align='center'></b></u></font>"
 					:
 					"<font size='14' color='#808080'><u><p align='center'>" + i.text + "</p align='center'></u></font>"
 			}
@@ -296,7 +308,6 @@ package {
 		}
 
 		private function CreateTextField(x:int, y:int, labelWidth:int, label:String, defaultValue:String = '', editable:Boolean = true, width:int = 200, height:int = 20):TextField {
-			
 			var labelField:TextField = new TextField();
 			labelField.defaultTextFormat = new TextFormat("Arial", 16);
 			labelField.text = label;

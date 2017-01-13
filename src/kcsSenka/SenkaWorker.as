@@ -1,6 +1,7 @@
 package kcsSenka  {
 	
     import flash.events.Event;
+    import flash.events.HTTPStatusEvent;
     import flash.events.IOErrorEvent;
     import flash.events.SecurityErrorEvent;
     import flash.events.TimerEvent;
@@ -29,8 +30,9 @@ package kcsSenka  {
     import kcsSenka.Enums.SenkaWorkerStates;
 
     public class SenkaWorker {
-
-//        private var _Log:Function;
+		
+		private var _retryTimes:int = 5;
+		
         private var _apiUrl:String;
         private var _cachePageTimers:Vector.<Timer>; // for launch a pile of delay timers at onece, so ugly lol
         private var _curCachePage:int;
@@ -71,22 +73,13 @@ package kcsSenka  {
 			// These are for sending messages to the parent worker
 			logChannel = Worker.current.getSharedProperty("logChannel") as MessageChannel;
 			resultChannel = Worker.current.getSharedProperty("resultChannel") as MessageChannel;
-			
-            _keyGen  =  new _APIBaseS_();
-            _userRecordData  =  new UserRecordData();
-            _rankDataList  =  new Vector.<RankingData>();
-            _cachePageTimers  =  new Vector.<Timer>();
-            _workerProgress  =  0;
             _apiUrl = "http://" + server + "/kcsapi/";
 			_serverAddr = server;
             _token = token;
 			_workerName = name;
             _maxCachePage = maxPage;
-            _curCachePage = 0;
-            _currWorkingState = SenkaWorkerStates.eIdle;
 			_Log(_workerName + " - Token: " + _token + ". Ready to work.");
             InitPostRequest();
-			
         }
 		
 		public function get WorkerName():String { return _workerName; }
@@ -154,6 +147,14 @@ package kcsSenka  {
         }
 
 		private function InitPostRequest():void {
+			_keyGen  =  new _APIBaseS_();
+			_userRecordData  =  new UserRecordData();
+			_rankDataList  =  new Vector.<RankingData>();
+			_cachePageTimers  =  new Vector.<Timer>();
+			_curCachePage = 0;
+			_workerProgress = 0;
+			_currWorkingState = SenkaWorkerStates.eIdle;
+			
 			var customHeader:Array = [new URLRequestHeader("Referer", Consts_Utils.POST_Referer), new URLRequestHeader("x-flash-version", Consts_Utils.POST_FlashVersion)];
 			_payItemRequest = new URLRequest(_apiUrl + Consts_Utils.PayItemAPI);
 			_recordRequest = new URLRequest(_apiUrl + Consts_Utils.RecordAPI);
@@ -172,6 +173,11 @@ package kcsSenka  {
 			_senkaVar.api_token = _token;
 			_senkaVar.api_verno = Consts_Utils.Magic_api_verno;
 			// add api ranking and pageNo on load function
+			
+			
+			_payItemRequest.idleTimeout = 5000;
+			_recordRequest.idleTimeout = 5000;
+			_senkaRequest.idleTimeout = 5000;
 			
 			_payItemRequest.method = URLRequestMethod.POST
 			_recordRequest.method = URLRequestMethod.POST;
@@ -195,13 +201,14 @@ package kcsSenka  {
             _urlLoader.addEventListener(Event.COMPLETE, PostCompleteHandler);
             _urlLoader.addEventListener("ioError", PostIOErrorHandler);
             _urlLoader.addEventListener("securityError", PostSecurityErrorHandler);
+			_urlLoader.addEventListener(HTTPStatusEvent.HTTP_STATUS, PostHTTPStatusHandler);
             _setDataFunc = SetPayItemData;
             try {
                 _urlLoader.load(_payItemRequest); // send request to download data
                 _Log(_workerName + " - PostPayItemRequest has been posted.");
 				
             } catch (e:Error) {
-				_Result(_workerName + " - Exception occured at PostPayItemRequest: " + e.message);
+				_ErrorResult(_workerName + " - Exception occured at PostPayItemRequest: " + e.message);
             }
         }
 
@@ -215,6 +222,7 @@ package kcsSenka  {
             _urlLoader.addEventListener(Event.COMPLETE, PostCompleteHandler);
             _urlLoader.addEventListener("ioError", PostIOErrorHandler);
             _urlLoader.addEventListener("securityError", PostSecurityErrorHandler);
+			_urlLoader.addEventListener(HTTPStatusEvent.HTTP_STATUS, PostHTTPStatusHandler);
             _setDataFunc = SetRecordData;
             try {
                 _urlLoader.load(_recordRequest); // send request to download data
@@ -234,6 +242,7 @@ package kcsSenka  {
 			_urlLoader.addEventListener(Event.COMPLETE, PostCompleteHandler);
 			_urlLoader.addEventListener("ioError", PostIOErrorHandler);
 			_urlLoader.addEventListener("securityError", PostSecurityErrorHandler);
+			_urlLoader.addEventListener(HTTPStatusEvent.HTTP_STATUS, PostHTTPStatusHandler);
 			_setDataFunc = SetSenkaData;
 			try {
 				if (_curCachePage > 0 && _curCachePage < 100)
@@ -255,11 +264,25 @@ package kcsSenka  {
 				
 			}
 		}
-
+		
+		private function PostHTTPStatusHandler(event:HTTPStatusEvent):void {
+			if (event.status != 200) {
+				if (_retryTimes-- >= 0) {
+					InitPostRequest();
+					StartWorker();
+					_Log(_workerName + " - http error:" + event.status + ". Remain retry: " + _retryTimes);
+				} else {
+					_ErrorResult(_workerName + " - retry excceded the maximum times.");
+				}
+			}
+			_urlLoader.removeEventListener(HTTPStatusEvent.HTTP_STATUS, PostHTTPStatusHandler);
+		}
+		
 		private function PostCompleteHandler(event:Event):void {
 			_urlLoader.removeEventListener(Event.COMPLETE, PostCompleteHandler);
 			_urlLoader.removeEventListener("ioError", PostIOErrorHandler);
 			_urlLoader.removeEventListener("securityError", PostSecurityErrorHandler);
+			_urlLoader.removeEventListener(HTTPStatusEvent.HTTP_STATUS, PostHTTPStatusHandler);
 			var postResult:String = String(event.target.data);
 			var jsonArr:Array = postResult.match(/svdata=(.*)/);
 			var api_data:* = "";
@@ -270,51 +293,51 @@ package kcsSenka  {
 				api_data = postResult;
 				
 			} else {
-				_Result(_workerName + " - API result parse error - " + event);
+				_ErrorResult(_workerName + " - API result parse error - " + event);
 				return;
 			}
 			_resultJson = null;
 			try {
 				_resultJson = JSON.parse(api_data);
 			} catch (e:Error) {
-				_Result(_workerName + " - JSON result parse error - " + e.message);
+				_ErrorResult(_workerName + " - JSON result parse error - " + e.message);
 				return;
 			}
 			if (_resultJson.api_result != 1) {
-				_Result(_workerName  + ": "+ _resultJson.api_result_msg + "Error code:" + _resultJson.api_result);
+				_ErrorResult(_workerName  + ": "+ _resultJson.api_result_msg + "Error code:" + _resultJson.api_result);
 				return;
 			}
 			_setDataFunc(_resultJson.api_data);
 		}
 		
 		private function PostIOErrorHandler(event:IOErrorEvent):void {
-			_Log(_workerName + " - Error! PostIOErrorHandler: " + event);
 			_urlLoader.removeEventListener(Event.COMPLETE, PostCompleteHandler);
 			_urlLoader.removeEventListener("ioError", PostIOErrorHandler);
 			_urlLoader.removeEventListener("securityError", PostSecurityErrorHandler);
-			
+			_urlLoader.removeEventListener(HTTPStatusEvent.HTTP_STATUS, PostHTTPStatusHandler);
 			_timer.stop();
 			_timer.removeEventListener(TimerEvent.TIMER, PostSenkaRequest);
 			_timer = null;
 			_currWorkingState = SenkaWorkerStates.eFinished;
+			_ErrorResult(_workerName + " - Error! PostIOErrorHandler: " + event);
 		}
 		
 		private function PostSecurityErrorHandler(event:SecurityErrorEvent):void {
-			_Log(_workerName + " - Error! PostSecurityErrorHandler: " + event);
 			_urlLoader.removeEventListener(Event.COMPLETE, PostCompleteHandler);
 			_urlLoader.removeEventListener("ioError", PostIOErrorHandler);
 			_urlLoader.removeEventListener("securityError", PostSecurityErrorHandler);
-			
+			_urlLoader.removeEventListener(HTTPStatusEvent.HTTP_STATUS, PostHTTPStatusHandler);
 			_timer.stop();
 			_timer.removeEventListener(TimerEvent.TIMER, PostSenkaRequest);
 			_timer = null;
 			_currWorkingState = SenkaWorkerStates.eFinished;
+			_ErrorResult(_workerName + " - Error! PostSecurityErrorHandler: " + event);
 		}
 
         // dummy result for simulation purpose, api data should be null
         private function SetPayItemData(api_data:Object):void {
             if (api_data !=  null) {
-                _Log(_workerName + " - PayItem's api_data should be null: " + api_data);
+				_ErrorResult(_workerName + " - PayItem's api_data should be null: " + api_data);
                 return;
             }
             _Log(_workerName + " - SetPayItemData Completed.");
@@ -371,6 +394,14 @@ package kcsSenka  {
 			var workerResult:Object = new Object();
 			workerResult.workerName = _workerName;
 			workerResult.command = "workFinished";
+			workerResult.log = text;
+			resultChannel.send(workerResult);
+		}
+		
+		private function _ErrorResult(text:String) :void {
+			var workerResult:Object = new Object();
+			workerResult.workerName = _workerName;
+			workerResult.command = "workError";
 			workerResult.log = text;
 			resultChannel.send(workerResult);
 		}
