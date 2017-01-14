@@ -4,6 +4,7 @@ package {
     import flash.events.Event;
     import flash.events.MouseEvent;
     import flash.events.NativeWindowBoundsEvent;
+    import flash.events.TimerEvent;
     import flash.filesystem.File;
     import flash.filesystem.FileMode;
     import flash.filesystem.FileStream;
@@ -18,6 +19,7 @@ package {
     import flash.text.TextFieldType;
     import flash.text.TextFormat;
     import flash.utils.Dictionary;
+    import flash.utils.Timer;
     
     import kcsSenka.Consts_Utils;
     import kcsSenka.SenkaWorker;
@@ -50,8 +52,7 @@ package {
 		private var senkaWorkerThread:SenkaWorker;	
 		private var commandChannel:MessageChannel;
 		
-		private function handleCommandMessage(event:Event):void
-		{
+		private function handleCommandMessage(event:Event):void {
 			if (!commandChannel.messageAvailable)
 				return;
 			
@@ -172,6 +173,9 @@ package {
         
 		private var inputToken:String;
 		
+		private var jstTimeFiled:TextField;
+		private var systemTime:Timer;
+		
 		private function SetupUI():void {
 			var lineSpace:int = 20;
 			var windowWidth:int = this.stage.nativeWindow.width;
@@ -192,8 +196,8 @@ package {
 					}
 				}
 			}
-			
 			logField = CreateTextField(20, windowHeigh / 1.95, 50, "Log", "", false, windowWidth - 160, windowHeigh / 2 - 70);
+			jstTimeFiled = CreateTextField( 630, 100 + StartWorkerBtn.height*18/2, 40, "JST: ", "00:00:00", false);
 			this.stage.nativeWindow.activate();
 			this.stage.nativeWindow.addEventListener(Event.CLOSING, function(e:Event):void {/*TO DO Release here*/ });
 			this.stage.nativeWindow.addEventListener(NativeWindowBoundsEvent.RESIZING, function(e:NativeWindowBoundsEvent):void{ e.preventDefault(); });

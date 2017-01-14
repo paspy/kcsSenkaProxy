@@ -134,17 +134,15 @@ package kcsSenka  {
                 }
 				stream.writeUTFBytes("</KCServer>");
                 stream.close();
-//				var workerResult:Object = new Object();
-//				workerResult.command = "Finished";
-//				workerResult.log = _workerName + " - Save at: " + filename.nativePath;
-//				
-//				resultChannel.send(workerResult);
-//                _Log(_workerName + " - Save at: " + filename.nativePath);
-				_Result(_workerName + " - Save at: " + filename.nativePath);
+				_Log(_workerName + " - Save at: " + filename.nativePath);
             } catch (e:Error) {
-                _Log(_workerName + " - ExportToFile error:" + e.message);
+				_ErrorResult(_workerName + " - ExportToFile error:" + e.message);
             }
         }
+		
+		public function ExportToMySQL():void {
+			
+		}
 
 		private function InitPostRequest():void {
 			_keyGen  =  new _APIBaseS_();
@@ -175,9 +173,9 @@ package kcsSenka  {
 			// add api ranking and pageNo on load function
 			
 			
-			_payItemRequest.idleTimeout = 5000;
-			_recordRequest.idleTimeout = 5000;
-			_senkaRequest.idleTimeout = 5000;
+			_payItemRequest.idleTimeout = 10000;
+			_recordRequest.idleTimeout = 10000;
+			_senkaRequest.idleTimeout = 15000; // 15s
 			
 			_payItemRequest.method = URLRequestMethod.POST
 			_recordRequest.method = URLRequestMethod.POST;
@@ -267,7 +265,7 @@ package kcsSenka  {
 		
 		private function PostHTTPStatusHandler(event:HTTPStatusEvent):void {
 			if (event.status != 200) {
-				if (_retryTimes-- >= 0) {
+				if (_retryTimes-- < 0) {
 					InitPostRequest();
 					StartWorker();
 					_Log(_workerName + " - http error:" + event.status + ". Remain retry: " + _retryTimes);
@@ -383,6 +381,7 @@ package kcsSenka  {
                 _timer = null;
                 _currWorkingState = SenkaWorkerStates.eFinished;
 				ExportToXML();
+				_Result(_workerName + " - work completed.");
             }
         }
 		
