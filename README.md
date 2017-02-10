@@ -1,2 +1,2 @@
 # kcsSenkaProxy
-自动获取战果的东西
+An Adobe air app that can automatic pulling senka data from kancolle server(s).
