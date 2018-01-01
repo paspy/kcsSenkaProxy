@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "kcsSenkaProxy": {
+      "commandName": "Project",
+      "commandLineArgs": "C:\\Users\\Paspy\\Dropbox\\Kancolle\\accounts.json"
+    }
+  }
+}

@@ -1,2 +1,2 @@
 # kcsSenkaProxy
-An Adobe air app that can automatic pulling senka data from kancolle server(s).
+An C# that can automatic pulling ranking data from kancolle server(s).
