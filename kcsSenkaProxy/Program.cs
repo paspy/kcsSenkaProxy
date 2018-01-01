@@ -46,10 +46,12 @@ namespace kcsSenkaProxy {
                 }
                 Console.WriteLine("Rua.");
                 Console.WriteLine("Senka record will start in " + Utils.FormatedTimeLeft());
-
+                m_timer.Change(Utils.GetNextCycleTimeLeft(), Timeout.Infinite);
             } catch (Exception) {
-                Console.WriteLine("Corrupt Account Info file.");
+                Console.WriteLine("Critical Error, restart in 5 seconds.");
+                m_timer.Change(5000, Timeout.Infinite);
             }
+
         }
 
         public sealed class KancolleAccount {
