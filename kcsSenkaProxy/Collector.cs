@@ -193,7 +193,7 @@ namespace kcsSenkaProxy {
         /// </summary>
         /// <param name="forwardSecond"></param>
         /// <returns></returns>
-        private static int GetNextCycleTimeLeft(int forwardSecond = 10) {
+        public static int GetNextCycleTimeLeft(int forwardSecond = 10) {
             var currJST = GetJSTNow().TimeOfDay;
             int hour = 0;
             int day = 0;
@@ -204,7 +204,7 @@ namespace kcsSenkaProxy {
             return (int)Math.Floor((nextTime - currJST).TotalMilliseconds) + forwardSecond * 1000;
         }
 
-        private static string FormatedTimeLeft() {
+        public static string FormatedTimeLeft() {
             TimeSpan t = TimeSpan.FromMilliseconds(GetNextCycleTimeLeft());
             return string.Format(
                 "{0:D2}:{1:D2}:{2:D2}:{3:D3}ms", t.Hours, t.Minutes, t.Seconds, t.Milliseconds);
