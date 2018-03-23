@@ -8,7 +8,7 @@ namespace Paspy {
     public static class KeyGen {
 
         // A set of key frequently update by Kancolle officials - Incorrect key would get error code 100
-        static readonly int[] Il = { 9470, 8975, 9494, 2139, 4463, 4132653, 1033183, 9024, 4330, 6042, 13, 8226, 3791, 10, 2827, 5276, 1000, 1875979 };
+        static readonly int[] Il = { 9542, 2404, 5208, 2139, 6773, 4132653, 1033183, 3436, 8280, 2357, 13, 5795, 3791, 10, 7599, 8707, 1000, 1875979 };
 
         /// <summary>
         /// Construct a signature string that will verified by Kancolle server (api_ranking, api_port, ...)
